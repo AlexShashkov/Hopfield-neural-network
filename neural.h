@@ -32,6 +32,7 @@ namespace Neural
         else return -1;
     }
 
+
     class Neuron{
         private:
             std::vector<float> weights;
@@ -43,6 +44,7 @@ namespace Neural
             std::vector<float> get(){
                 return weights;
             };
+
             int operator() (std::vector<float> input){
                 int ctr = 0;
                 float res =  std::accumulate(
@@ -52,10 +54,23 @@ namespace Neural
 
                 return res > 0 ? ACTIVE : INACTIVE; 
             }
+
             void print(){
                 print_arr(weights);
             }
+
+        friend std::ofstream& operator<<(std::ofstream&, Neuron&);
     };
+
+
+    std::ofstream& operator<<(std::ofstream& stream, Neuron& neuron){
+        std::for_each(
+            neuron.weights.begin(), neuron.weights.end(),
+            [&stream](auto i) {stream << i << " ";}
+        );
+        stream << "\n";
+    }
+
 
     class Network{
         private:
@@ -75,7 +90,7 @@ namespace Neural
             }
             Matrix train_image(Matrix matrix, std::vector<float> img){
                 std::for_each(img.begin(), img.end(),
-                    [&matrix, img](float val) {
+                    [&matrix, img](float val){
                         std::vector<float> newvec;
                         dot(img, val, newvec);
                         matrix.push_back(newvec);
@@ -223,7 +238,19 @@ namespace Neural
                 std::cout << "Прочитан образ: "; print_arr(img); 
                 return operator()(img, max_cntr, max_sim, last_eval);
             }
+
+        friend std::ofstream& operator<<(std::ofstream&, Network&);
     };
+
+
+    std::ofstream& operator<<(std::ofstream& stream, Network& network){
+        std::for_each(
+            network.neurons.begin(), network.neurons.end(),
+                [&stream](Neuron n) {
+                    stream << n;
+                }
+        );
+    }
 }
 
 #endif
