@@ -2,6 +2,7 @@
 #define NEURAL_H
 
 #include <algorithm>
+#include <iterator>
 #include <iostream>
 #include <numeric>
 #include <fstream>
@@ -40,9 +41,15 @@ namespace Neural
             Neuron(std::vector<float> val){
                 weights = val;
             }
+            Neuron(int count){
+                weights = std::vector<float>(count, 0.0);;
+            }
 
             std::vector<float> get(){
                 return weights;
+            };
+            void clear(){
+                weights.clear();
             };
 
             int operator() (std::vector<float> input){
@@ -60,6 +67,7 @@ namespace Neural
             }
 
         friend std::ofstream& operator<<(std::ofstream&, Neuron&);
+        friend std::ifstream& operator>>(std::ifstream&, Neuron&);
     };
 
 
@@ -69,6 +77,16 @@ namespace Neural
             [&stream](auto i) {stream << i << " ";}
         );
         stream << "\n";
+    }
+
+    std::ifstream& operator>>(std::ifstream& stream, Neuron& neuron){
+        std::transform(
+            neuron.weights.begin(), neuron.weights.end(), neuron.weights.begin(),
+            [&stream](auto i) {
+                stream >> i;
+                return i;
+            }
+        );
     }
 
 
@@ -88,6 +106,7 @@ namespace Neural
                 }
                 return images;
             }
+
             Matrix train_image(Matrix matrix, std::vector<float> img){
                 std::for_each(img.begin(), img.end(),
                     [&matrix, img](float val){
@@ -149,7 +168,7 @@ namespace Neural
 
                 float neuordiv = 1/((float)size*(float)size);
 
-                std::cout << "Divider: " << neuordiv << "\n";
+                // std::cout << "Divider: " << neuordiv << "\n";
 
                 for(int i=0; i<matrix.size(); i++){
                     std::transform(matrix[i].begin(), matrix[i].end(), matrix[i].begin(),
@@ -169,23 +188,27 @@ namespace Neural
                 Вывести весовую матрицу нейронной сети Хопфилда.
             */
             void print(){
+                std::cout << "Trained net:\n";
                 std::for_each(neurons.begin(), neurons.end(),
                     [](Neuron n) {n.print();}
                 );
+                std::cout << "Images the net was trained on:\n";
+                std::for_each(keys.begin(), keys.end(), print_arr);
             }
 
             /**
-                Один проход нейронной сети.
+                Один асинхронный проход нейронной сети.
                 @param input Вектор входных данных типа float
                 @returns Результирующий вектор.
             */
             std::vector<float> eval(std::vector<float> input){
-                std::vector<float> res;
-                std::for_each(neurons.begin(), neurons.end(),
-                    [&input, &res](Neuron n) { res.push_back(n(input)); }
+                std::transform(neurons.begin(), neurons.end(), input.begin(),
+                    [input](Neuron n) -> float {
+                        return n(input);
+                    }
                 );
 
-                return res;
+                return input;
             }
 
             /**
@@ -212,8 +235,8 @@ namespace Neural
                     if(cntr % 100 == 0){
                         std::cout << "Текущее состояние фильтрации:\n Проход #" << cntr <<
                             ", наибольшая схожесть: " << max_simmilarity << " из " << size*size << "\n";
-                        std::cout << "Больше всего похоже на: "; print_arr(most_simmiliar);
-                        std::cout << "Последнее исполнение: "; print_arr(input);
+                        //std::cout << "Больше всего похоже на: "; print_arr(most_simmiliar);
+                        //std::cout << "Последнее исполнение: "; print_arr(input);
                     }
                     cntr++;
                 }
@@ -240,16 +263,47 @@ namespace Neural
             }
 
         friend std::ofstream& operator<<(std::ofstream&, Network&);
+        friend std::ifstream& operator>>(std::ifstream&, Network&);
     };
 
 
     std::ofstream& operator<<(std::ofstream& stream, Network& network){
+        stream << network.image << " " << network.size << "\n";
         std::for_each(
             network.neurons.begin(), network.neurons.end(),
                 [&stream](Neuron n) {
                     stream << n;
                 }
         );
+
+        std::for_each(
+            network.keys.begin(), network.keys.end(),
+                [&stream](auto vec) {
+                    for (auto &item : vec) stream << item << " ";
+                    stream << "\n";
+                }
+        );
+    }
+
+    std::ifstream& operator>>(std::ifstream& stream, Network& network){
+        network.neurons.clear();
+        network.keys.clear();
+        stream >> network.image >> network.size;
+
+        for(int i = 0; i < network.size*network.size; i++){
+            Neuron neuron(network.size*network.size);
+            stream >> neuron;
+            network.neurons.push_back(neuron);
+        }
+        for(int i = 0; i < network.image; i++){
+            std::vector<float> vec;
+            for(int i = 0; i < network.size*network.size; i++){
+                float ret;
+                stream >> ret;
+                vec.push_back(ret);
+            }
+            network.keys.push_back(vec);
+        }
     }
 }
 
